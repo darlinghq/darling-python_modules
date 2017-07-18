@@ -41,3 +41,6 @@ add_subdirectory(Modules/macholib-1.5.1/macholib-1.5.1)
 add_subdirectory(Modules/macholib-1.5/macholib-1.5)
 add_subdirectory(Modules/xattr-0.6.4/xattr-0.6.4)
 
+install(FILES Extras-2.6.pth DESTINATION libexec/darling/Library/Python/2.6/site-packages RENAME Extras.pth)
+install(FILES Extras-2.7.pth DESTINATION libexec/darling/Library/Python/2.7/site-packages RENAME Extras.pth)
+
