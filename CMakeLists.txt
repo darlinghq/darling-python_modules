@@ -30,10 +30,10 @@ function(build_pybundle name)
 	endif (BUNDLE_FAT)
 
 	set_property(TARGET "${full_name}" APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-flat_namespace -Wl,-undefined,suppress ")
-	set_target_properties("${full_name}" PROPERTIES OUTPUT_NAME "${name}" PREFIX "" SUFFIX ".so")
 
 	target_link_libraries("${full_name}" system)
 	install(TARGETS "${full_name}" DESTINATION "${BUNDLE_DESTINATION}")
+	install(CODE "execute_process(COMMAND mv ${full_name} ${name}.so WORKING_DIRECTORY ${BUNDLE_DESTINATION})")
 endfunction(build_pybundle)
 
 add_subdirectory(Modules/six-1.4.1/six-1.4.1)
