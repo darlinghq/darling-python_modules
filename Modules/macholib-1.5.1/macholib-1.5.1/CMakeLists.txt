@@ -23,3 +23,9 @@ set(macholib_src
 pyc("py27_macholib" SOURCES ${macholib_src} DESTINATION libexec/darling/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/macholib)
 install(FILES ${macholib_src} DESTINATION libexec/darling/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/macholib)
 
+set(eggfiles
+	PKG-INFO
+	README.txt
+)
+INSTALL(FILES ${eggfiles} DESTINATION libexec/darling/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/macholib-1.5.1-py2.7.egg-info)
+INSTALL(FILES ${eggfiles} DESTINATION libexec/darling/System/Library/Frameworks/Python.framework/Versions/2.6/Extras/lib/python/macholib-1.5.1-py2.6.egg-info)
