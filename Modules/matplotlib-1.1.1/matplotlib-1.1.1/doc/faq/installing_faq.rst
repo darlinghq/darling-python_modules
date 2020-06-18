@@ -107,11 +107,11 @@ Source install from git
 
 Clone the main source using one of::
 
-   git clone git@github.com:matplotlib/matplotlib.git
+   git clone --depth 1 git@github.com:matplotlib/matplotlib.git
 
 or::
 
-   git clone git://github.com/matplotlib/matplotlib.git
+   git clone --depth 1 git://github.com/matplotlib/matplotlib.git
 
 and build and install as usual with::
 
@@ -315,7 +315,7 @@ previous version of MPL was installed (Looks something like
    PREFIX=$HOME
    #branch="release"
    branch="master"
-   git clone git://github.com/matplotlib/matplotlib.git
+   git clone --depth 1 git://github.com/matplotlib/matplotlib.git
    cd matplotlib
    if [ $branch = "release" ]
        then

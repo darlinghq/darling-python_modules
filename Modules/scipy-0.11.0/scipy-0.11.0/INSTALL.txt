@@ -115,7 +115,7 @@ Development version from Git
 ----------------------------
 Use the command::
 
-  git clone https://github.com/scipy/scipy.git
+  git clone --depth 1 https://github.com/scipy/scipy.git
 
 Before building and installing from git, remove the old installation
 (e.g. in /usr/lib/python2.4/site-packages/scipy or

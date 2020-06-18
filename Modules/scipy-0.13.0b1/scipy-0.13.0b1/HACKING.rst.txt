@@ -174,7 +174,7 @@ explained below.
 First fork a copy of the main Scipy repository in Github onto your own
 account and then create your local repository via::
 
-    $ git clone git@github.com:YOURUSERNAME/scipy.git scipy
+    $ git clone --depth 1 git@github.com:YOURUSERNAME/scipy.git scipy
     $ cd scipy
     $ git remote add upstream git://github.com/scipy/scipy.git
 

@@ -666,7 +666,7 @@ def get_sample_data(fname, asfileobj=True):
     To add a datafile to this directory, you need to check out
     sample_data from matplotlib git::
 
-      git clone git@github.com:matplotlib/sample_data
+      git clone --depth 1 git@github.com:matplotlib/sample_data
 
     and git add the data file you want to support.  This is primarily
     intended for use in mpl examples that need custom data.

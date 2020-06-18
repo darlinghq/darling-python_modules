@@ -1,7 +1,7 @@
 """
 Demonstrate how get_sample_data works with git revisions in the data.
 
-    git clone git@github.com/matplotlib/sample_data.git
+    git clone --depth 1 git@github.com/matplotlib/sample_data.git
 
 and edit testdata.csv to add a new row.  After committing the changes,
 when you rerun this script you will get the updated data (and the new

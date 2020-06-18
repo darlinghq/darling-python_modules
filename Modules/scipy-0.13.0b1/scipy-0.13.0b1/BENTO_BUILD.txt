@@ -2,7 +2,7 @@ No-frill version:
 
   * Clone bento::
 
-        $ git clone git://github.com/cournape/Bento.git bento
+        $ git clone --depth 1 git://github.com/cournape/Bento.git bento
     
   * Bootstrap bento::
 
@@ -10,7 +10,7 @@ No-frill version:
 
   * Clone Waf::
 
-        $ git clone https://code.google.com/p/waf/ 
+        $ git clone --depth 1 https://code.google.com/p/waf/ 
 
   * Set the WAFDIR environment variable to the base dir of the waf repo you
     just created (in your bash_login for example if you're going to build with

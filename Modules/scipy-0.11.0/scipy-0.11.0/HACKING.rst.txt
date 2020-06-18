@@ -209,7 +209,7 @@ compatibility`_.
 The simplest method is setting up an in-place build.  To create your local git
 repo and do the in-place build::
 
-  $ git clone https://github.com/scipy/scipy.git scipy
+  $ git clone --depth 1 https://github.com/scipy/scipy.git scipy
   $ cd scipy
   $ python setup.py build_ext -i
 
