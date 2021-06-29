@@ -4,7 +4,11 @@ include(CMakeParseArguments)
 include(darling_bundle)
 
 function(build_pybundle name)
-	cmake_parse_arguments(BUNDLE "FAT" "PYTHON_VERSION;DESTINATION" "SOURCES" ${ARGN})
+	cmake_parse_arguments(BUNDLE "FAT" "PYTHON_VERSION;DESTINATION;OUTPUT_NAME" "SOURCES;DEPENDS" ${ARGN})
+
+	if(NOT BUNDLE_OUTPUT_NAME)
+		set(BUNDLE_OUTPUT_NAME "${name}")
+	endif()
 
 	# Apple has removed Python 2.6 support, so disable this codepath
 	#
@@ -33,18 +37,21 @@ function(build_pybundle name)
 		message(FATAL_ERROR "Unknown Python version set: ${BUNDLE_PYTHON_VERSION}")
 	endif()
 
-	set(full_name "${name}_${suffix}")
+	set(full_name "${name}${suffix}")
 	add_darling_bundle("${full_name}" "" ${BUNDLE_SOURCES})
 
 	if (BUNDLE_FAT)
 		make_fat("${full_name}")
 	endif (BUNDLE_FAT)
 
-	set_property(TARGET "${full_name}" APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-flat_namespace -Wl,-undefined,suppress ")
+	set_property(TARGET "${full_name}" APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-undefined,dynamic_lookup ")
 
-	target_link_libraries("${full_name}" system)
-	install(TARGETS "${full_name}" DESTINATION "${BUNDLE_DESTINATION}")
-	install(CODE "execute_process(COMMAND mv ${full_name} ${name}.so WORKING_DIRECTORY ${BUNDLE_DESTINATION})")
+	target_link_libraries("${full_name}" system "${BUNDLE_DEPENDS}")
+	install(
+		PROGRAMS "$<TARGET_FILE:${full_name}>"
+		DESTINATION "${BUNDLE_DESTINATION}"
+		RENAME "${BUNDLE_OUTPUT_NAME}.so"
+	)
 endfunction(build_pybundle)
 
 function(easyinstall python_version package_name package_version)
