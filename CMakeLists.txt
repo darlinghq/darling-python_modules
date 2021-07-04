@@ -4,10 +4,16 @@ include(CMakeParseArguments)
 include(darling_bundle)
 
 function(build_pybundle name)
-	cmake_parse_arguments(BUNDLE "FAT" "PYTHON_VERSION;DESTINATION;OUTPUT_NAME" "SOURCES;DEPENDS" ${ARGN})
+	cmake_parse_arguments(BUNDLE "FAT;NO_SUFFIX" "PYTHON_VERSION;DESTINATION;OUTPUT_NAME" "SOURCES;DEPENDS" ${ARGN})
 
 	if(NOT BUNDLE_OUTPUT_NAME)
 		set(BUNDLE_OUTPUT_NAME "${name}")
+	endif()
+
+	if (BUNDLE_NO_SUFFIX)
+		set(BUNDLE_SUFFIX "")
+	else()
+		set(BUNDLE_SUFFIX ".so")
 	endif()
 
 	# Apple has removed Python 2.6 support, so disable this codepath
@@ -50,7 +56,7 @@ function(build_pybundle name)
 	install(
 		PROGRAMS "$<TARGET_FILE:${full_name}>"
 		DESTINATION "${BUNDLE_DESTINATION}"
-		RENAME "${BUNDLE_OUTPUT_NAME}.so"
+		RENAME "${BUNDLE_OUTPUT_NAME}${BUNDLE_SUFFIX}"
 	)
 endfunction(build_pybundle)
 
@@ -70,6 +76,9 @@ add_subdirectory(Modules/six-1.12.0/six-1.12.0)
 add_subdirectory(Modules/macholib-1.5.1/macholib-1.5.1)
 add_subdirectory(Modules/xattr-0.6.4/xattr-0.6.4)
 add_subdirectory(Modules/setuptools-41.0.1/setuptools-41.0.1)
+add_subdirectory(Modules/py2app-0.7.3/py2app-0.7.3-noprebuilt)
+add_subdirectory(Modules/altgraph-0.10.2/altgraph-0.10.2)
+add_subdirectory(Modules/modulegraph-0.10.4/modulegraph-0.10.4)
 
 #install(FILES Extras-2.6.pth DESTINATION libexec/darling/Library/Python/2.6/site-packages RENAME Extras.pth)
 install(FILES Extras-2.7.pth DESTINATION libexec/darling/Library/Python/2.7/site-packages RENAME Extras.pth)
