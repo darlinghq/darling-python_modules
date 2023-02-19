@@ -1,1 +1,0 @@
-import recertifi.__main__

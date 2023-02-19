@@ -1,1 +1,0 @@
-print("Helper 1")

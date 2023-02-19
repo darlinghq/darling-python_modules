@@ -15,12 +15,12 @@ MODULES = \
     python-dateutil-1.5 \
     pyparsing-2.0.1 \
     matplotlib-1.3.1 \
-    cffi-1.12.2 \
+    cffi-1.14.3 \
     pycparser-2.19 \
     asn1crypto-0.24.0 \
     enum34-1.1.6 \
     ipaddress-1.0.22 \
-    cryptography-2.6.1 \
+    cryptography-2.9.2 \
     pyOpenSSL-19.0.0 \
     wheel-0.33.1 \
     recertifi-0.11.0
