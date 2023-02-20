@@ -81,5 +81,5 @@ add_subdirectory(Modules/altgraph-0.10.2/altgraph-0.10.2)
 add_subdirectory(Modules/modulegraph-0.10.4/modulegraph-0.10.4)
 
 #install(FILES Extras-2.6.pth DESTINATION libexec/darling/Library/Python/2.6/site-packages RENAME Extras.pth)
-install(FILES Extras-2.7.pth DESTINATION libexec/darling/Library/Python/2.7/site-packages RENAME Extras.pth)
+install(FILES darling/src/Extras-2.7.pth DESTINATION libexec/darling/Library/Python/2.7/site-packages RENAME Extras.pth)
 
