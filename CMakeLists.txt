@@ -68,7 +68,7 @@ function(easyinstall python_version package_name package_version)
 	set(PACKAGE_NAME ${package_name})
 	set(PACKAGE_VERSION ${package_version})
 
-	configure_file(${CMAKE_SOURCE_DIR}/src/external/python_modules/easyinstall.py.in "${local_file}")
+	configure_file(${CMAKE_SOURCE_DIR}/src/external/python_modules/darling/src/easyinstall.py.in "${local_file}")
 	install(PROGRAMS "${local_file}" DESTINATION libexec/darling/usr/bin RENAME "${package_name}-${python_version}")
 endfunction(easyinstall)
 
