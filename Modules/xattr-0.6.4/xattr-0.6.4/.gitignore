@@ -1,4 +1,6 @@
-/xattr.egg-info
+# DARLING - Don't ignore `xattr.egg-info` folder
+# /xattr.egg-info
+## DARLING 
 /build
 /dist
 *.pyc
