@@ -12,12 +12,12 @@ set(altgraph_pysrc
 
 pyc(py27_altgraph
 	SOURCES ${altgraph_pysrc}
-	DESTINATION libexec/darling/System/Library/Frameworks/Python.framework//Versions/2.7/Extras/lib/python/altgraph
+	DESTINATION libexec/darling/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/altgraph
 )
 
 install(
 	FILES ${altgraph_pysrc}
-	DESTINATION libexec/darling/System/Library/Frameworks/Python.framework//Versions/2.7/Extras/lib/python/altgraph
+	DESTINATION libexec/darling/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/altgraph
 )
 
 install(

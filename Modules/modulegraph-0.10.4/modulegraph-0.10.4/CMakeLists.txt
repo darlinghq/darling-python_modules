@@ -12,12 +12,12 @@ set(modulegraph_pysrc
 
 pyc(py27_modulegraph
 	SOURCES ${modulegraph_pysrc}
-	DESTINATION libexec/darling/System/Library/Frameworks/Python.framework//Versions/2.7/Extras/lib/python/modulegraph
+	DESTINATION libexec/darling/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/modulegraph
 )
 
 install(
 	FILES ${modulegraph_pysrc}
-	DESTINATION libexec/darling/System/Library/Frameworks/Python.framework//Versions/2.7/Extras/lib/python/modulegraph
+	DESTINATION libexec/darling/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/modulegraph
 )
 
 install(
