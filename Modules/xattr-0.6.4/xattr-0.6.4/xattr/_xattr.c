@@ -1,4 +1,11 @@
 #include "Python.h"
+/* In python 3.x, the PyBytes family of routines, defined in bytesobject.h,
+ * manipulate byte strings, which is closest to the char * type of C.  However,
+ * python 2.x doesn't have PyBytes, but use the PyString family.  In python
+ * 2.6 and 2.7, bytesobject.h is a compatibility header that maps the PyBytes
+ * routines to the corresponding PyString routine.
+ */
+#include "bytesobject.h"
 #ifdef __FreeBSD__
 #include <sys/extattr.h>
 #elif defined(__SUN__) || defined(__sun__)
@@ -548,19 +555,27 @@ static ssize_t xattr_flistxattr(int fd, char *namebuf, size_t size, int options)
 #define xattr_flistxattr flistxattr
 #endif
 
-static PyObject *xattr_error(void);
-static PyObject *xattr_error_with_filename(char *name);
+static PyObject *xattr_error(const char *name);
+static PyObject *xattr_error_with_filename(const char *file, const char *name);
 
 static PyObject *
-xattr_error(void)
+xattr_error(const char *name)
 {
+    if (name && errno == ENOATTR) {
+	PyErr_SetString(PyExc_KeyError, name);
+	return NULL;
+    }
     return PyErr_SetFromErrno(PyExc_IOError);
 }
 
 static PyObject *
-xattr_error_with_filename(char *name)
+xattr_error_with_filename(const char *file, const char *name)
 {
-    return PyErr_SetFromErrnoWithFilename(PyExc_IOError, name);
+    if (name && errno == ENOATTR) {
+	PyErr_SetString(PyExc_KeyError, name);
+	return NULL;
+    }
+    return PyErr_SetFromErrnoWithFilename(PyExc_IOError, (char *)file);
 }
 
 PyDoc_STRVAR(pydoc_getxattr,
@@ -580,7 +595,7 @@ py_getxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , PyO
     u_int32_t position = 0;
     ssize_t res;
     if (!PyArg_ParseTuple(args, /* AndKeywords(args, kwds, */
-            "etet|IIi:getxattr", /* keywords, */
+            "etet|kIi:getxattr", /* keywords, */
             Py_FileSystemDefaultEncoding, &path,
             Py_FileSystemDefaultEncoding, &name,
             &size,
@@ -593,24 +608,24 @@ py_getxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , PyO
         res = xattr_getxattr((const char *)path, (const char *)name, NULL, 0, position, options);
         Py_END_ALLOW_THREADS
         if (res == -1) {    
-            PyObject *tmp = xattr_error_with_filename(path);
+            PyObject *tmp = xattr_error_with_filename(path, name);
             PyMem_Free(path);
             PyMem_Free(name);
             return tmp;
         }
         size = res;
     }
-    buffer = PyString_FromStringAndSize((char *)NULL, size);
+    buffer = PyBytes_FromStringAndSize((char *)NULL, size);
     if (buffer == NULL) {
         PyMem_Free(path);
         PyMem_Free(name);
         return NULL;
     }
     Py_BEGIN_ALLOW_THREADS
-    res = xattr_getxattr((const char *)path, (const char *)name, (void *)PyString_AS_STRING(buffer), size, position, options);
+    res = xattr_getxattr((const char *)path, (const char *)name, (void *)PyBytes_AS_STRING(buffer), size, position, options);
     Py_END_ALLOW_THREADS
     if (res == -1) {
-        PyObject *tmp = xattr_error_with_filename(path);
+        PyObject *tmp = xattr_error_with_filename(path, name);
         Py_DECREF(buffer);
         PyMem_Free(path);
         PyMem_Free(name);
@@ -619,7 +634,7 @@ py_getxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , PyO
     PyMem_Free(path);
     PyMem_Free(name);
     if (res != size) {
-        _PyString_Resize(&buffer, (int)res);
+        _PyBytes_Resize(&buffer, (int)res);
     }
     return buffer;
 }
@@ -641,7 +656,7 @@ py_fgetxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , Py
     u_int32_t position = 0;
     ssize_t res;
     if (!PyArg_ParseTuple(args, /* AndKeywords(args, kwds, */
-            "iet|IIi:fgetxattr", /* keywords, */
+            "iet|kIi:fgetxattr", /* keywords, */
             &fd,
             Py_FileSystemDefaultEncoding, &name,
             &size,
@@ -654,26 +669,29 @@ py_fgetxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , Py
         res = xattr_fgetxattr(fd, (const char *)name, NULL, 0, position, options);
         Py_END_ALLOW_THREADS
         if (res == -1) {    
+            PyObject *tmp = xattr_error(name);
             PyMem_Free(name);
-            return xattr_error();
+            return tmp;
         }
         size = res;
     }
-    buffer = PyString_FromStringAndSize((char *)NULL, size);
+    buffer = PyBytes_FromStringAndSize((char *)NULL, size);
     if (buffer == NULL) {
         PyMem_Free(name);
         return NULL;
     }
     Py_BEGIN_ALLOW_THREADS
-    res = xattr_fgetxattr(fd, (const char *)name, (void *)PyString_AS_STRING(buffer), size, position, options);
+    res = xattr_fgetxattr(fd, (const char *)name, (void *)PyBytes_AS_STRING(buffer), size, position, options);
     Py_END_ALLOW_THREADS
-    PyMem_Free(name);
     if (res == -1) {
+        PyObject *tmp = xattr_error(name);
+        PyMem_Free(name);
         Py_DECREF(buffer);
-        return xattr_error();
+        return tmp;
     }
+    PyMem_Free(name);
     if (res != size) {
-        _PyString_Resize(&buffer, (int)res);
+        _PyBytes_Resize(&buffer, (int)res);
     }
     return buffer;
 }
@@ -708,7 +726,7 @@ py_setxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , PyO
     res = xattr_setxattr((const char *)path, (const char *)name, (void *)value, size, position, options);
     Py_END_ALLOW_THREADS
     if (res) {
-        result = xattr_error_with_filename(path);
+        result = xattr_error_with_filename(path, name);
     } else {
         Py_INCREF(Py_None);
         result = Py_None;
@@ -746,10 +764,12 @@ py_fsetxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , Py
     Py_BEGIN_ALLOW_THREADS
     res = xattr_fsetxattr(fd, (const char *)name, (void *)value, size, position, options);
     Py_END_ALLOW_THREADS
-    PyMem_Free(name);
     if (res) {
-        return xattr_error();
+        PyObject *tmp = xattr_error(name);
+        PyMem_Free(name);
+        return tmp;
     }
+    PyMem_Free(name);
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -779,7 +799,7 @@ py_removexattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , 
     res = xattr_removexattr((const char *)path, (const char *)name, options);
     Py_END_ALLOW_THREADS
     if (res) {
-        result = xattr_error_with_filename(path);
+        result = xattr_error_with_filename(path, name);
     } else {
         Py_INCREF(Py_None);
         result = Py_None;
@@ -812,10 +832,12 @@ py_fremovexattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* ,
     Py_BEGIN_ALLOW_THREADS
     res = xattr_fremovexattr(fd, (const char *)name, options);
     Py_END_ALLOW_THREADS
-    PyMem_Free(name);
     if (res) {
-        return xattr_error();
+        PyObject *tmp = xattr_error(name);
+        PyMem_Free(name);
+        return tmp;
     }
+    PyMem_Free(name);
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -843,11 +865,11 @@ py_listxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , Py
     res = xattr_listxattr((const char *)path, NULL, 0, options);
     Py_END_ALLOW_THREADS
     if (res == -1) {    
-        PyObject *tmp = xattr_error_with_filename(path);
+        PyObject *tmp = xattr_error_with_filename(path, NULL);
         PyMem_Free(path);
         return tmp;
     }
-    buffer = PyString_FromStringAndSize((char *)NULL, (int)res);
+    buffer = PyBytes_FromStringAndSize((char *)NULL, (int)res);
     if (buffer == NULL) {
         PyMem_Free(path);
         return NULL;
@@ -858,17 +880,17 @@ py_listxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , Py
         return buffer;
     }
     Py_BEGIN_ALLOW_THREADS
-    res = xattr_listxattr((const char *)path, (void *)PyString_AS_STRING(buffer), (size_t)PyString_GET_SIZE(buffer), options);
+    res = xattr_listxattr((const char *)path, (void *)PyBytes_AS_STRING(buffer), (size_t)PyBytes_GET_SIZE(buffer), options);
     Py_END_ALLOW_THREADS
     if (res == -1) {
-        PyObject *tmp = xattr_error_with_filename(path);
+        PyObject *tmp = xattr_error_with_filename(path, NULL);
         Py_DECREF(buffer);
         PyMem_Free(path);
         return tmp;
     }
     PyMem_Free(path);
-    if (res != (ssize_t)PyString_GET_SIZE(buffer)) {
-        _PyString_Resize(&buffer, (int)res);
+    if (res != (ssize_t)PyBytes_GET_SIZE(buffer)) {
+        _PyBytes_Resize(&buffer, (int)res);
     }
     return buffer;
 }
@@ -896,21 +918,21 @@ py_flistxattr(PyObject* self __attribute__((__unused__)), PyObject *args) /* , P
     res = xattr_flistxattr(fd, NULL, 0, options);
     Py_END_ALLOW_THREADS
     if (res == -1) {    
-        return xattr_error();
+        return xattr_error(NULL);
     }
-    buffer = PyString_FromStringAndSize((char *)NULL, (int)res);
+    buffer = PyBytes_FromStringAndSize((char *)NULL, (int)res);
     if (buffer == NULL) {
         return NULL;
     }
     Py_BEGIN_ALLOW_THREADS
-    res = xattr_flistxattr(fd, (void *)PyString_AS_STRING(buffer), (size_t)PyString_GET_SIZE(buffer), options);
+    res = xattr_flistxattr(fd, (void *)PyBytes_AS_STRING(buffer), (size_t)PyBytes_GET_SIZE(buffer), options);
     Py_END_ALLOW_THREADS
     if (res == -1) {
         Py_DECREF(buffer);
-        return xattr_error();
+        return xattr_error(NULL);
     }
-    if (res != (ssize_t)PyString_GET_SIZE(buffer)) {
-        _PyString_Resize(&buffer, (int)res);
+    if (res != (ssize_t)PyBytes_GET_SIZE(buffer)) {
+        _PyBytes_Resize(&buffer, (int)res);
     }
     return buffer;
 }
@@ -936,11 +958,32 @@ static PyMethodDef xattr_methods[] = {
 };
 #undef DEFN
 
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "_xattr",
+    NULL,
+    0,
+    xattr_methods,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
+
+PyObject *
+PyInit__xattr(void)
+#else
 void init_xattr(void);
 
 void
 init_xattr(void)
+#endif
 {
+#if PY_MAJOR_VERSION >= 3
+    return PyModule_Create(&moduledef);
+#else
     PyObject *m;
     m = Py_InitModule4("_xattr", xattr_methods, NULL, NULL, PYTHON_API_VERSION);
+#endif
 }

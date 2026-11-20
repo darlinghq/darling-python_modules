@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 ##
-# Copyright (c) 2007 Apple Inc.
+# Copyright (c) 2007 - 2010, 2013 Apple Inc.
 #
 # This is the MIT license.  This software may also be distributed under the
 # same terms as Python (the PSF license).
@@ -29,7 +29,8 @@ import sys
 import os
 import getopt
 import xattr
-import zlib
+import binascii
+import string
 
 def usage(e=None):
     if e:
@@ -37,75 +38,103 @@ def usage(e=None):
         print ""
 
     name = os.path.basename(sys.argv[0])
-    print "usage: %s [-lz] file [file ...]" % (name,)
-    print "       %s -p [-lz] attr_name file [file ...]" % (name,)
-    print "       %s -w [-z] attr_name attr_value file [file ...]" % (name,)
-    print "       %s -d attr_name file [file ...]" % (name,)
+    print "usage: %s [-l] [-r] [-s] [-v] [-x] file [file ...]" % (name,)
+    print "       %s -p [-l] [-r] [-s] [-v] [-x] attr_name file [file ...]" % (name,)
+    print "       %s -w [-r] [-s] [-x] attr_name attr_value file [file ...]" % (name,)
+    print "       %s -d [-r] [-s] attr_name file [file ...]" % (name,)
+    print "       %s -c [-r] [-s] file [file ...]" % (name,)
     print ""
     print "The first form lists the names of all xattrs on the given file(s)."
     print "The second form (-p) prints the value of the xattr attr_name."
-    print "The third form (-w) sets the value of the xattr attr_name to attr_value."
+    print "The third form (-w) sets the value of the xattr attr_name to the string attr_value."
     print "The fourth form (-d) deletes the xattr attr_name."
+    print "The fifth form (-c) deletes (clears) all xattrs."
     print ""
     print "options:"
     print "  -h: print this help"
-    print "  -l: print long format (attr_name: attr_value)"
-    print "  -z: compress or decompress (if compressed) attribute value in zip format"
+    print "  -l: print long format (attr_name: attr_value and hex output has offsets and"
+    print "      ascii representation)"
+    print "  -r: act recursively"
+    print "  -s: act on the symbolic link itself rather than what the link points to"
+    print "  -v: also print filename (automatic with -r and with multiple files)"
+    print "  -x: attr_value is represented as a hex string for input and output"
 
     if e:
         sys.exit(64)
     else:
         sys.exit(0)
 
-class NullsInString(Exception):
-    """Nulls in string."""
-
 _FILTER=''.join([(len(repr(chr(x)))==3) and chr(x) or '.' for x in range(256)])
 
-def _dump(src, length=16):
+def _dump(src, length=16, longfmt=0):
     result=[]
     for i in xrange(0, len(src), length):
         s = src[i:i+length]
         hexa = ' '.join(["%02X"%ord(x) for x in s])
-        printable = s.translate(_FILTER)
-        result.append("%04X   %-*s   %s\n" % (i, length*3, hexa, printable))
-    return ''.join(result)
+        if longfmt:
+            printable = s.translate(_FILTER)
+            result.append("%08X  %-*s |%s|" % (i, length*3, hexa, printable))
+        else:
+            result.append(hexa)
+    if longfmt:
+        result.append("%08x" % len(src))
+    return '\n'.join(result)
+
+status = 0
 
 def main():
+    global status
     try:
-        (optargs, args) = getopt.getopt(sys.argv[1:], "hlpwdz", ["help"])
+        (optargs, args) = getopt.getopt(sys.argv[1:], "cdhlprsvwx", ["help"])
     except getopt.GetoptError, e:
         usage(e)
 
     attr_name   = None
-    long_format = False
-    read        = False
-    write       = False
+    attr_value  = None
+    clear       = False
     delete      = False
-    compress    = lambda x: x
-    decompress  = compress
-    status      = 0
+    dohex       = False
+    long_format = False
+    main_arg    = None
+    options     = 0     # 0 or XATTR_NOFOLLOW
+    read        = False
+    recursive   = False
+    verbose     = False
+    write       = False
 
     for opt, arg in optargs:
-        if opt in ("-h", "--help"):
+        if opt == "-c":
+            if main_arg and main_arg != opt:
+                usage("Can't specify %s with %s" % (main_arg, opt))
+            main_arg = opt
+            clear = True
+        elif opt == "-d":
+            if main_arg and main_arg != opt:
+                usage("Can't specify %s with %s" % (main_arg, opt))
+            main_arg = opt
+            delete = True
+        elif opt in ("-h", "--help"):
             usage()
         elif opt == "-l":
             long_format = True
         elif opt == "-p":
+            if main_arg and main_arg != opt:
+                usage("Can't specify %s with %s" % (main_arg, opt))
+            main_arg = opt
             read = True
-            if write or delete:
-                usage("-p not allowed with -w or -d")
+        elif opt == "-r":
+            recursive = True
+        elif opt == "-s":
+            options = xattr.XATTR_NOFOLLOW
+        elif opt == "-v":
+            verbose = True
         elif opt == "-w":
+            if main_arg and main_arg != opt:
+                usage("Can't specify %s with %s" % (main_arg, opt))
+            main_arg = opt
             write = True
-            if read or delete:
-                usage("-w not allowed with -p or -d")
-        elif opt == "-d":
-            delete = True
-            if read or write:
-                usage("-d not allowed with -p or -w")
-        elif opt == "-z":
-            compress   = zlib.compress
-            decompress = zlib.decompress
+        elif opt == "-x":
+            dohex = True
 
     if write or delete:
         if long_format:
@@ -127,75 +156,106 @@ def main():
         multiple_files = False
 
     for filename in args:
-        def onError(e):
-            if not os.path.exists(filename):
-                sys.stderr.write("No such file: %s\n" % (filename,))
-            else:
-                sys.stderr.write(str(e) + "\n")
-            status = 1
-
-        try:
-            attrs = xattr.xattr(filename)
-        except (IOError, OSError), e:
-            onError(e)
-            continue
-
-        if write:
-            try:
-                attrs[attr_name] = compress(attr_value)
-            except (IOError, OSError), e:
-                onError(e)
-                continue
-
-        elif delete:
-            try:
-                del attrs[attr_name]
-            except (IOError, OSError), e:
-                onError(e)
-                continue
-            except KeyError:
-                onError("No such xattr: %s" % (attr_name,))
-                continue
-
-        else:
-            try:
-                if read:
-                    attr_names = (attr_name,)
+        def doSinglePathChange(filename,attr_name,attr_value,read,write,delete,recursive):
+            def onError(e):
+                global status
+                if not os.path.exists(filename):
+                    sys.stderr.write("xattr: No such file: %s\n" % (filename,))
                 else:
-                    attr_names = attrs.keys()
-            except (IOError, OSError), e:
-                onError(e)
-                continue
+                    sys.stderr.write("xattr: " + str(e) + "\n")
+                status = 1
 
-            if multiple_files:
-                file_prefix = "%s: " % (filename,)
+            def notPrintable(s):
+                try:
+                    s.decode('utf-8')
+                    if s.find('\0') >= 0:
+                        return True
+                    return False
+                except UnicodeError:
+                    return True
+
+            if verbose or recursive or multiple_files:
+                file_prefix = "%s: " % filename
             else:
                 file_prefix = ""
 
-            for attr_name in attr_names:
+            if recursive and os.path.isdir(filename) and not os.path.islink(filename):
+                listdir = os.listdir(filename)
+                for subfilename in listdir:
+                    doSinglePathChange(filename+'/'+subfilename,attr_name,attr_value,read,write,delete,recursive)
+
+            try:
+                attrs = xattr.xattr(filename, options)
+            except (IOError, OSError), e:
+                onError(e)
+                return
+
+            if write:
                 try:
-                    try:
-                        attr_value = decompress(attrs[attr_name])
-                    except zlib.error:
-                        attr_value = attrs[attr_name]
+                    if dohex:
+                        # strip whitespace and unhexlify
+                        attr_value = binascii.unhexlify(attr_value.translate(string.maketrans('', ''), string.whitespace))
+                    attrs[attr_name] = attr_value
+                except (IOError, OSError, TypeError), e:
+                    onError(e)
+                    return
+
+            elif delete:
+                try:
+                    del attrs[attr_name]
+                except (IOError, OSError), e:
+                    onError(e)
+                    return
                 except KeyError:
-                    onError("%sNo such xattr: %s" % (file_prefix, attr_name))
-                    continue
+                    if not recursive:
+                        onError("%s: No such xattr: %s" % (filename, attr_name,))
+                        return
 
-                if long_format:
-                    try:
-                        if attr_value.find('\0') >= 0:
-                            raise NullsInString;
-                        print "".join((file_prefix, "%s: " % (attr_name,), attr_value))
-                    except (UnicodeDecodeError, NullsInString):
-                        print "".join((file_prefix, "%s:" % (attr_name,)))
-                        print _dump(attr_value)
-                else:
+            elif clear:
+                try:
+                    attrs.clear()
+                except (IOError, OSError), e:
+                    onError(e)
+                    return
+
+            else:
+                try:
                     if read:
-                        print "".join((file_prefix, attr_value))
+                        attr_names = (attr_name,)
                     else:
-                        print "".join((file_prefix, attr_name))
+                        attr_names = [a.encode('utf-8') for a in attrs.keys()]
+                except (IOError, OSError), e:
+                    onError(e)
+                    return
 
+                for attr_name in attr_names:
+                    try:
+                        if long_format:
+                            if dohex or notPrintable(attrs[attr_name]):
+                                print "%s%s:" % (file_prefix, attr_name)
+                                print _dump(attrs[attr_name], longfmt=1)
+                            else:
+                                print "%s%s: %s" % (file_prefix, attr_name, attrs[attr_name])
+                        else:
+                            if read:
+                                if dohex or notPrintable(attrs[attr_name]):
+                                    if len(file_prefix) > 0:
+                                        print file_prefix
+                                    print _dump(attrs[attr_name])
+                                else:
+                                    print "%s%s" % (file_prefix, attrs[attr_name])
+                            else:
+                                print "%s%s" % (file_prefix, attr_name)
+                    except (IOError, OSError), e:
+                        onError(e)
+                        return
+                    except KeyError:
+                        onError("%s: No such xattr: %s" % (filename, attr_name))
+                        return
+
+            return
+
+        doSinglePathChange(filename,attr_name,attr_value,read,write,delete,recursive)
     sys.exit(status)
 
 if __name__ == "__main__":

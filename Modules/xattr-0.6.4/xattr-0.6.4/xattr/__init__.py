@@ -118,19 +118,13 @@ class xattr(object):
         return len(self.list())
 
     def __delitem__(self, item):
-        try:
-            self.remove(item)
-        except IOError:
-            raise KeyError(item)
+        self.remove(item)
 
     def __setitem__(self, item, value):
         self.set(item, value)
 
     def __getitem__(self, item):
-        try:
-            return self.get(item)
-        except IOError:
-            raise KeyError(item)
+        return self.get(item)
 
     def iterkeys(self):
         return iter(self.list())
@@ -140,7 +134,7 @@ class xattr(object):
     def has_key(self, item):
         try:
             self.get(item)
-        except IOError:
+        except:
             return False
         else:
             return True
@@ -161,10 +155,8 @@ class xattr(object):
         return dict(self.iteritems())
 
     def setdefault(self, k, d=''):
-        try:
-            d = self.get(k)
-        except IOError:
-            self[k] = d
+        d = self.get(k)
+        self[k] = d
         return d
 
     def keys(self):
