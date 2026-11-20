@@ -18,6 +18,8 @@ install(FILES ${xattr_pysrc} DESTINATION libexec/darling/System/Library/Framewor
 
 easyinstall("2.7" "xattr" "0.6.4")
 
+install(FILES ../xattr.1 DESTINATION libexec/darling/usr/share/man/man1)
+
 install(DIRECTORY xattr.egg-info/ DESTINATION libexec/darling/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/xattr-0.6.4-py2.7.egg-info)
 
 # update this if you want to add back Python 2.6 support
